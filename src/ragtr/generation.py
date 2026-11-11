@@ -11,7 +11,9 @@ Both return the same ``Answer`` type and use the same abstention sentence, so me
 
 from __future__ import annotations
 
+import logging
 import re
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -24,6 +26,7 @@ from ragtr.text.sentences import split_sentences
 from ragtr.text.turkish import Analyzer, AnalyzerConfig, Stemmer, fold_diacritics, tr_lower
 
 _tracer = trace.get_tracer("ragtr.generation")
+log = logging.getLogger("ragtr.generation")
 
 ABSTAIN = "Belgelerde bu sorunun yanıtı yok."
 _ABSTAIN_KEY = "yaniti yok"
@@ -91,11 +94,33 @@ class OllamaGenerator:
         timeout_s: float = 120.0,
         num_ctx: int = 4096,
         client: httpx.Client | None = None,
+        attempts: int = 3,
+        backoff_s: float = 2.0,
     ) -> None:
         self.name = f"ollama:{model}"
         self._model = model
         self._num_ctx = num_ctx
         self._client = client or httpx.Client(base_url=base_url, timeout=timeout_s)
+        self._attempts = max(attempts, 1)
+        self._backoff_s = backoff_s
+
+    def _post(self, payload: dict[str, Any]) -> httpx.Response:
+        """POST with bounded retries on 5xx and connection errors.
+
+        A local model server fails transiently: the runner is killed under memory pressure and reloaded on the
+        next request, or the server restarts. 4xx (unknown model, bad request) is not retried.
+        """
+        for attempt in range(1, self._attempts + 1):
+            try:
+                response = self._client.post("/api/chat", json=payload)
+                if response.status_code < 500 or attempt == self._attempts:
+                    return response.raise_for_status()
+            except httpx.TransportError:
+                if attempt == self._attempts:
+                    raise
+            log.warning("ollama request failed, retrying", extra={"fields": {"attempt": attempt}})
+            time.sleep(self._backoff_s * 2 ** (attempt - 1))
+        raise AssertionError("unreachable")  # pragma: no cover
 
     def generate(self, question: str, contexts: Sequence[ScoredChunk]) -> Answer:
         if not contexts:
@@ -108,9 +133,7 @@ class OllamaGenerator:
         }
         with _tracer.start_as_current_span("generate.ollama") as span:
             span.set_attribute("gen_ai.request.model", self._model)
-            response = self._client.post("/api/chat", json=payload)
-            response.raise_for_status()
-            body = response.json()
+            body = self._post(payload).json()
             text = str(body.get("message", {}).get("content", "")).strip()
             usage = {
                 "prompt_tokens": int(body.get("prompt_eval_count", 0)),

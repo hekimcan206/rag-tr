@@ -97,10 +97,33 @@ def test_ollama_abstention_has_no_citations() -> None:
 
 
 @respx.mock
-def test_ollama_http_errors_propagate() -> None:
-    respx.post("http://ollama:11434/api/chat").mock(return_value=httpx.Response(500))
+def test_ollama_server_errors_propagate_after_the_last_attempt() -> None:
+    route = respx.post("http://ollama:11434/api/chat").mock(return_value=httpx.Response(500))
     with pytest.raises(httpx.HTTPStatusError):
-        OllamaGenerator("http://ollama:11434").generate("x", CONTEXTS)
+        OllamaGenerator("http://ollama:11434", attempts=3, backoff_s=0).generate("x", CONTEXTS)
+    assert route.call_count == 3
+
+
+@respx.mock
+def test_ollama_retries_a_transient_failure_then_answers() -> None:
+    route = respx.post("http://ollama:11434/api/chat").mock(
+        side_effect=[
+            httpx.ConnectError("runner restarting"),
+            httpx.Response(500),
+            httpx.Response(200, json={"message": {"content": "Bedel 1.450 TL'dir [2]."}}),
+        ]
+    )
+    answer = OllamaGenerator("http://ollama:11434", attempts=3, backoff_s=0).generate("x", CONTEXTS)
+    assert answer.citations == [2]
+    assert route.call_count == 3
+
+
+@respx.mock
+def test_ollama_client_errors_are_not_retried() -> None:
+    route = respx.post("http://ollama:11434/api/chat").mock(return_value=httpx.Response(404))
+    with pytest.raises(httpx.HTTPStatusError):
+        OllamaGenerator("http://ollama:11434", attempts=3, backoff_s=0).generate("x", CONTEXTS)
+    assert route.call_count == 1
 
 
 def test_ollama_skips_the_call_without_contexts() -> None:
