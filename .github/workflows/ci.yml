@@ -69,10 +69,14 @@ jobs:
       - uses: astral-sh/setup-uv@v7
       # No bot opens dependency PRs here: a known vulnerability in any locked package (including the
       # optional ML extra) fails the build, and the fix is a hand-written lock update.
+      # The CPU PyTorch wheel carries a local version (2.x.y+cpu) that PyPI and the advisory database do not
+      # know, so it is audited under its upstream version: same source release, same advisories.
       - name: pip-audit
         run: |
-          uv export --all-extras --all-groups --no-emit-project --format requirements-txt -o requirements.txt
-          uvx pip-audit==2.9.0 --requirement requirements.txt --disable-pip --strict --progress-spinner off
+          uv export --all-extras --all-groups --no-emit-project --no-hashes --format requirements-txt \
+            | sed -E 's/^(torch==[0-9.]+)\+cpu/\1/' > requirements.txt
+          grep -E '^torch==' requirements.txt
+          uvx pip-audit==2.9.0 --requirement requirements.txt --disable-pip --no-deps --strict --progress-spinner off
 
   container:
     name: container image
