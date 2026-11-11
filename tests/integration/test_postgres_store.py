@@ -73,11 +73,19 @@ def test_sql_bm25_equals_the_in_memory_reference(
 ) -> None:
     pg, mem = stores
     terms = ANALYZER.term_counts(query)
-    expected = mem.lexical_search(terms, 20)
-    actual = pg.lexical_search(terms, 20)
-    assert [c for c, _ in actual] == [c for c, _ in expected]
-    for (_, a), (_, e) in zip(actual, expected, strict=True):
-        assert math.isclose(a, e, rel_tol=1e-9)
+    # Every matching chunk (no cut-off), so a group of tied scores can never straddle the limit.
+    expected = mem.lexical_search(terms, 1000)
+    actual = pg.lexical_search(terms, 1000)
+
+    # Near-duplicate documents tie on BM25. PostgreSQL and NumPy sum in a different order, so tied scores can
+    # differ in the 15th digit and swap places. Compare rankings with ties resolved by id, scores to 1e-9.
+    def ranking(hits: list[tuple[str, float]]) -> list[str]:
+        return [c for c, _ in sorted(hits, key=lambda h: (-round(h[1], 9), h[0]))]
+
+    assert ranking(actual) == ranking(expected)
+    scores = dict(expected)
+    for chunk_id, score in actual:
+        assert math.isclose(score, scores[chunk_id], rel_tol=1e-9)
 
 
 @pytest.mark.parametrize("query", QUERIES)
