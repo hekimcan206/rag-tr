@@ -1,0 +1,158 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: "1"
+  UV_PYTHON: "3.13"
+
+jobs:
+  lint:
+    name: ruff, format & mypy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      - run: uv run mypy
+
+  test:
+    name: unit + integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - run: uv sync
+      # Integration tests start pgvector/PostgreSQL through Testcontainers on the runner's Docker engine.
+      # The unit suite includes the evaluation regression gate: the download-free `ci` suite is re-run
+      # and every metric must equal eval/results/ci.json.
+      - name: pytest
+        run: uv run pytest --cov --cov-report=term --cov-report=xml --junitxml=junit.xml
+      - name: Coverage summary
+        if: always()
+        run: |
+          if [ -f .coverage ]; then
+            { echo "### Coverage"; uv run coverage report --format=markdown; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: test-results
+          path: junit.xml
+          retention-days: 7
+
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      # No bot opens dependency PRs here: a known vulnerability in any locked package (including the
+      # optional ML extra) fails the build, and the fix is a hand-written lock update.
+      - name: pip-audit
+        run: |
+          uv export --all-extras --all-groups --no-emit-project --format requirements-txt -o requirements.txt
+          uvx pip-audit==2.9.0 --requirement requirements.txt --disable-pip --strict --progress-spinner off
+
+  container:
+    name: container image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: rag-tr:ci
+          cache-from: type=gha,scope=core
+          cache-to: type=gha,mode=max,scope=core
+      - name: Image runs as non-root and the CLI starts
+        run: |
+          user=$(docker image inspect rag-tr:ci --format '{{.Config.User}}')
+          echo "user=${user}"
+          test -n "${user}" && test "${user}" != "0" && test "${user}" != "root"
+          docker run --rm rag-tr:ci ragtr --help
+          docker image ls rag-tr:ci --format 'size={{.Size}}'
+
+  compose-demo:
+    name: docker compose demo
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      # The README promises `docker compose up` runs the whole demo with zero manual steps; this job keeps it true.
+      - name: Start the stack
+        run: docker compose up -d --build
+
+      - name: Wait for migration, API and seeding
+        run: |
+          test "$(docker wait rag-tr-migrate-1)" = "0" || { docker compose logs migrate; exit 1; }
+          test "$(docker wait rag-tr-seed-1)" = "0" || { docker compose logs seed; exit 1; }
+          docker compose logs seed
+          curl -fsS http://localhost:58470/readyz | tee ready.json
+          jq -e '.documents == 59 and .chunks > 59' ready.json
+
+      - name: Ask a Turkish question and get a cited answer
+        run: |
+          curl -fsS http://localhost:58470/v1/ask -H 'content-type: application/json' \
+               -d '{"question":"Akçaburç Belediyesi'"'"'nde hacimli atıklar ayda kaç kez ücretsiz alınır?"}' | tee ask.json
+          jq -e '.abstained == false' ask.json
+          jq -e '.citations[0].document_id == "akcaburc-atik-toplama"' ask.json
+
+      - name: An ASCII-typed question finds the same document
+        run: |
+          curl -fsS http://localhost:58470/v1/search -H 'content-type: application/json' \
+               -d '{"query":"akcaburc hacimli atik ayda kac kez","k":3}' | tee search.json
+          jq -e '.[0].document_id == "akcaburc-atik-toplama"' search.json
+
+      - name: Unanswerable question abstains
+        run: |
+          curl -fsS http://localhost:58470/v1/ask -H 'content-type: application/json' \
+               -d '{"question":"Yeşilvadi Belediyesi'"'"'nde otopark aylık abonman ücreti ne kadardır?"}' | tee none.json
+          jq -e '.abstained == true and (.citations | length) == 0' none.json
+
+      - name: Re-seeding is idempotent
+        run: |
+          before=$(curl -fsS http://localhost:58470/readyz | jq .chunks)
+          docker compose run --rm seed
+          after=$(curl -fsS http://localhost:58470/readyz | jq .chunks)
+          echo "chunks: ${before} -> ${after}"
+          test "${before}" = "${after}"
+
+      - name: The API role cannot alter the schema
+        run: |
+          ! docker compose exec -T postgres psql "postgresql://ragtr_app:ragtr-app-demo@localhost/ragtr" \
+              -c "DROP TABLE chunk_terms" 2> drop.err
+          grep -q "must be owner" drop.err
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail 200
+
+      - name: Stop
+        if: always()
+        run: docker compose down -v
