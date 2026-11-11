@@ -1,0 +1,88 @@
+# `docker compose up` starts PostgreSQL + pgvector, creates the schema, starts the API and indexes the
+# synthetic Turkish corpus. Defaults are deterministic and need no model download; see .env.example for the
+# real stack (multilingual E5 + reranker + Ollama).
+name: rag-tr
+
+x-ragtr: &ragtr
+  build:
+    context: .
+    args:
+      EXTRAS: ${RAGTR_EXTRAS:-}
+  image: rag-tr:${RAGTR_EXTRAS:-core}
+  environment: &ragtr-env
+    RAGTR_DATABASE_URL: postgresql://ragtr_app:${RAGTR_APP_PASSWORD:-ragtr-app-demo}@postgres:5432/ragtr
+    RAGTR_EMBEDDER: ${RAGTR_EMBEDDER:-hashing-384}
+    RAGTR_RERANKER: ${RAGTR_RERANKER:-none}
+    RAGTR_GENERATOR: ${RAGTR_GENERATOR:-extractive}
+    RAGTR_OLLAMA_URL: http://ollama:11434
+    RAGTR_OLLAMA_MODEL: ${RAGTR_OLLAMA_MODEL:-gemma3:4b}
+  volumes:
+    - hf-cache:/home/app/.cache/huggingface
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg17
+    environment:
+      POSTGRES_USER: ragtr_owner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ragtr-owner-demo}
+      POSTGRES_DB: ragtr
+      RAGTR_APP_PASSWORD: ${RAGTR_APP_PASSWORD:-ragtr-app-demo}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:58471:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ragtr_owner -d ragtr"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *ragtr
+    command: ["ragtr", "migrate", "--app-role", "ragtr_app"]
+    environment:
+      <<: *ragtr-env
+      RAGTR_ADMIN_DATABASE_URL: postgresql://ragtr_owner:${POSTGRES_PASSWORD:-ragtr-owner-demo}@postgres:5432/ragtr
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *ragtr
+    ports:
+      - "127.0.0.1:58470:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  seed:
+    <<: *ragtr
+    command: ["ragtr", "ingest", "data", "--api", "http://api:8000"]
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Local LLM, opt-in: `docker compose --profile llm up` with RAGTR_GENERATOR=ollama.
+  ollama:
+    image: ollama/ollama:0.12.6
+    profiles: ["llm"]
+    volumes:
+      - ollama:/root/.ollama
+    ports:
+      - "127.0.0.1:58472:11434"
+
+  ollama-pull:
+    image: ollama/ollama:0.12.6
+    profiles: ["llm"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    command: ["pull", "${RAGTR_OLLAMA_MODEL:-gemma3:4b}"]
+    restart: on-failure
+    depends_on:
+      - ollama
+
+volumes:
+  pgdata:
+  hf-cache:
+  ollama:
