@@ -1,0 +1,511 @@
+{
+  "suite": "normalisation",
+  "description": "Turkish-aware lexical normalisation, BM25 alone and inside hybrid retrieval.",
+  "environment": {
+    "timestamp_utc": "2026-11-11T09:31:23+00:00",
+    "python": "3.13.9",
+    "platform": "Linux-6.18.58.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "cpu_count": 16,
+    "packages": {
+      "numpy": "2.5.4",
+      "torch": "2.15.0+cpu",
+      "sentence-transformers": "6.2.0",
+      "transformers": "5.22.2"
+    },
+    "loadavg_start": [
+      6.43,
+      7.24,
+      4.54
+    ],
+    "mem_total_gb": 7.6,
+    "mem_available_gb_start": 6.4,
+    "embedder": "e5-small",
+    "reranker": "mmarco-minilm",
+    "generator": "extractive",
+    "documents": 59,
+    "questions": 602,
+    "wall_seconds": 37.2,
+    "embedding_seconds": {
+      "e5-small": 35.1
+    },
+    "rerank_pairs": 0,
+    "rerank_seconds": 0.0,
+    "loadavg_end": [
+      5.54,
+      6.89,
+      4.52
+    ]
+  },
+  "runs": [
+    {
+      "name": "naive (str.lower)",
+      "mode": "bm25",
+      "chunking": "structure+context",
+      "analyzer": "naive",
+      "embedder": "-",
+      "rerank": false,
+      "questions": 558,
+      "chunks": 191,
+      "chunk_words": 34.7,
+      "overall": {
+        "recall_at_1": 0.509,
+        "recall_at_5": 0.8369,
+        "recall_at_10": 0.9319,
+        "mrr_at_10": 0.6344,
+        "ndcg_at_10": 0.7056,
+        "recall_at_budget": 0.914
+      },
+      "by_variant": {
+        "canonical": {
+          "recall_at_1": 0.8817,
+          "recall_at_5": 0.9946,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.9313,
+          "ndcg_at_10": 0.9485,
+          "recall_at_budget": 1.0
+        },
+        "paraphrase": {
+          "recall_at_1": 0.2204,
+          "recall_at_5": 0.5806,
+          "recall_at_10": 0.8387,
+          "mrr_at_10": 0.3704,
+          "ndcg_at_10": 0.4794,
+          "recall_at_budget": 0.7849
+        },
+        "ascii": {
+          "recall_at_1": 0.4247,
+          "recall_at_5": 0.9355,
+          "recall_at_10": 0.957,
+          "mrr_at_10": 0.6017,
+          "ndcg_at_10": 0.6889,
+          "recall_at_budget": 0.957
+        }
+      },
+      "answers": null,
+      "seconds": 21.3
+    },
+    {
+      "name": "+ Turkish casing",
+      "mode": "bm25",
+      "chunking": "structure+context",
+      "analyzer": "trcase",
+      "embedder": "-",
+      "rerank": false,
+      "questions": 558,
+      "chunks": 191,
+      "chunk_words": 34.7,
+      "overall": {
+        "recall_at_1": 0.5143,
+        "recall_at_5": 0.8441,
+        "recall_at_10": 0.9391,
+        "mrr_at_10": 0.6401,
+        "ndcg_at_10": 0.7117,
+        "recall_at_budget": 0.9247
+      },
+      "by_variant": {
+        "canonical": {
+          "recall_at_1": 0.8978,
+          "recall_at_5": 0.9946,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.9393,
+          "ndcg_at_10": 0.9545,
+          "recall_at_budget": 1.0
+        },
+        "paraphrase": {
+          "recall_at_1": 0.2043,
+          "recall_at_5": 0.586,
+          "recall_at_10": 0.8495,
+          "mrr_at_10": 0.3676,
+          "ndcg_at_10": 0.4801,
+          "recall_at_budget": 0.8065
+        },
+        "ascii": {
+          "recall_at_1": 0.4409,
+          "recall_at_5": 0.9516,
+          "recall_at_10": 0.9677,
+          "mrr_at_10": 0.6135,
+          "ndcg_at_10": 0.7003,
+          "recall_at_budget": 0.9677
+        }
+      },
+      "answers": null,
+      "seconds": 0.14
+    },
+    {
+      "name": "+ apostrophe suffix",
+      "mode": "bm25",
+      "chunking": "structure+context",
+      "analyzer": "trcase+apos",
+      "embedder": "-",
+      "rerank": false,
+      "questions": 558,
+      "chunks": 191,
+      "chunk_words": 34.7,
+      "overall": {
+        "recall_at_1": 0.5161,
+        "recall_at_5": 0.8441,
+        "recall_at_10": 0.9409,
+        "mrr_at_10": 0.6427,
+        "ndcg_at_10": 0.7142,
+        "recall_at_budget": 0.9337
+      },
+      "by_variant": {
+        "canonical": {
+          "recall_at_1": 0.8978,
+          "recall_at_5": 0.9946,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.9393,
+          "ndcg_at_10": 0.9545,
+          "recall_at_budget": 1.0
+        },
+        "paraphrase": {
+          "recall_at_1": 0.2043,
+          "recall_at_5": 0.586,
+          "recall_at_10": 0.8548,
+          "mrr_at_10": 0.3713,
+          "ndcg_at_10": 0.4847,
+          "recall_at_budget": 0.8333
+        },
+        "ascii": {
+          "recall_at_1": 0.4462,
+          "recall_at_5": 0.9516,
+          "recall_at_10": 0.9677,
+          "mrr_at_10": 0.6176,
+          "ndcg_at_10": 0.7034,
+          "recall_at_budget": 0.9677
+        }
+      },
+      "answers": null,
+      "seconds": 0.13
+    },
+    {
+      "name": "+ stopwords",
+      "mode": "bm25",
+      "chunking": "structure+context",
+      "analyzer": "trcase+apos+stop",
+      "embedder": "-",
+      "rerank": false,
+      "questions": 558,
+      "chunks": 191,
+      "chunk_words": 34.7,
+      "overall": {
+        "recall_at_1": 0.5108,
+        "recall_at_5": 0.8441,
+        "recall_at_10": 0.9337,
+        "mrr_at_10": 0.6344,
+        "ndcg_at_10": 0.706,
+        "recall_at_budget": 0.9229
+      },
+      "by_variant": {
+        "canonical": {
+          "recall_at_1": 0.9032,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.9389,
+          "ndcg_at_10": 0.9541,
+          "recall_at_budget": 1.0
+        },
+        "paraphrase": {
+          "recall_at_1": 0.2097,
+          "recall_at_5": 0.6075,
+          "recall_at_10": 0.8387,
+          "mrr_at_10": 0.3723,
+          "ndcg_at_10": 0.4816,
+          "recall_at_budget": 0.8172
+        },
+        "ascii": {
+          "recall_at_1": 0.4194,
+          "recall_at_5": 0.9247,
+          "recall_at_10": 0.9624,
+          "mrr_at_10": 0.592,
+          "ndcg_at_10": 0.6822,
+          "recall_at_budget": 0.9516
+        }
+      },
+      "answers": null,
+      "seconds": 0.12
+    },
+    {
+      "name": "+ Snowball stemmer",
+      "mode": "bm25",
+      "chunking": "structure+context",
+      "analyzer": "trcase+apos+stop+snowball",
+      "embedder": "-",
+      "rerank": false,
+      "questions": 558,
+      "chunks": 191,
+      "chunk_words": 34.7,
+      "overall": {
+        "recall_at_1": 0.5878,
+        "recall_at_5": 0.9176,
+        "recall_at_10": 0.9695,
+        "mrr_at_10": 0.7023,
+        "ndcg_at_10": 0.7668,
+        "recall_at_budget": 0.9677
+      },
+      "by_variant": {
+        "canonical": {
+          "recall_at_1": 0.8925,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.9368,
+          "ndcg_at_10": 0.9527,
+          "recall_at_budget": 1.0
+        },
+        "paraphrase": {
+          "recall_at_1": 0.371,
+          "recall_at_5": 0.7957,
+          "recall_at_10": 0.9355,
+          "mrr_at_10": 0.5219,
+          "ndcg_at_10": 0.6201,
+          "recall_at_budget": 0.9301
+        },
+        "ascii": {
+          "recall_at_1": 0.5,
+          "recall_at_5": 0.957,
+          "recall_at_10": 0.9731,
+          "mrr_at_10": 0.6483,
+          "ndcg_at_10": 0.7275,
+          "recall_at_budget": 0.9731
+        }
+      },
+      "answers": null,
+      "seconds": 0.23
+    },
+    {
+      "name": "+ ASCII folding",
+      "mode": "bm25",
+      "chunking": "structure+context",
+      "analyzer": "trcase+apos+stop+snowball+fold",
+      "embedder": "-",
+      "rerank": false,
+      "questions": 558,
+      "chunks": 191,
+      "chunk_words": 34.7,
+      "overall": {
+        "recall_at_1": 0.6953,
+        "recall_at_5": 0.9319,
+        "recall_at_10": 0.9785,
+        "mrr_at_10": 0.7866,
+        "ndcg_at_10": 0.833,
+        "recall_at_budget": 0.9767
+      },
+      "by_variant": {
+        "canonical": {
+          "recall_at_1": 0.8925,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.9368,
+          "ndcg_at_10": 0.9527,
+          "recall_at_budget": 1.0
+        },
+        "paraphrase": {
+          "recall_at_1": 0.371,
+          "recall_at_5": 0.7957,
+          "recall_at_10": 0.9355,
+          "mrr_at_10": 0.5235,
+          "ndcg_at_10": 0.6215,
+          "recall_at_budget": 0.9301
+        },
+        "ascii": {
+          "recall_at_1": 0.8226,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.8995,
+          "ndcg_at_10": 0.925,
+          "recall_at_budget": 1.0
+        }
+      },
+      "answers": null,
+      "seconds": 0.28
+    },
+    {
+      "name": "prefix-5 instead of Snowball (default)",
+      "mode": "bm25",
+      "chunking": "structure+context",
+      "analyzer": "trcase+apos+stop+prefix5+fold",
+      "embedder": "-",
+      "rerank": false,
+      "questions": 558,
+      "chunks": 191,
+      "chunk_words": 34.7,
+      "overall": {
+        "recall_at_1": 0.7007,
+        "recall_at_5": 0.9552,
+        "recall_at_10": 0.9892,
+        "mrr_at_10": 0.8021,
+        "ndcg_at_10": 0.848,
+        "recall_at_budget": 0.9875
+      },
+      "by_variant": {
+        "canonical": {
+          "recall_at_1": 0.871,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.931,
+          "ndcg_at_10": 0.9489,
+          "recall_at_budget": 1.0
+        },
+        "paraphrase": {
+          "recall_at_1": 0.3602,
+          "recall_at_5": 0.8656,
+          "recall_at_10": 0.9677,
+          "mrr_at_10": 0.5441,
+          "ndcg_at_10": 0.6461,
+          "recall_at_budget": 0.9624
+        },
+        "ascii": {
+          "recall_at_1": 0.871,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.931,
+          "ndcg_at_10": 0.9489,
+          "recall_at_budget": 1.0
+        }
+      },
+      "answers": null,
+      "seconds": 0.17
+    },
+    {
+      "name": "Snowball, fold before stemming",
+      "mode": "bm25",
+      "chunking": "structure+context",
+      "analyzer": "trcase+apos+stop+snowball+fold<stem",
+      "embedder": "-",
+      "rerank": false,
+      "questions": 558,
+      "chunks": 191,
+      "chunk_words": 34.7,
+      "overall": {
+        "recall_at_1": 0.6953,
+        "recall_at_5": 0.9104,
+        "recall_at_10": 0.9767,
+        "mrr_at_10": 0.7808,
+        "ndcg_at_10": 0.8279,
+        "recall_at_budget": 0.9749
+      },
+      "by_variant": {
+        "canonical": {
+          "recall_at_1": 0.9032,
+          "recall_at_5": 0.9946,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.9384,
+          "ndcg_at_10": 0.9537,
+          "recall_at_budget": 1.0
+        },
+        "paraphrase": {
+          "recall_at_1": 0.3441,
+          "recall_at_5": 0.7419,
+          "recall_at_10": 0.9301,
+          "mrr_at_10": 0.5012,
+          "ndcg_at_10": 0.6029,
+          "recall_at_budget": 0.9247
+        },
+        "ascii": {
+          "recall_at_1": 0.8387,
+          "recall_at_5": 0.9946,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.9026,
+          "ndcg_at_10": 0.927,
+          "recall_at_budget": 1.0
+        }
+      },
+      "answers": null,
+      "seconds": 0.23
+    },
+    {
+      "name": "hybrid, naive analyser",
+      "mode": "hybrid",
+      "chunking": "structure+context",
+      "analyzer": "naive",
+      "embedder": "e5-small",
+      "rerank": false,
+      "questions": 558,
+      "chunks": 191,
+      "chunk_words": 34.7,
+      "overall": {
+        "recall_at_1": 0.6631,
+        "recall_at_5": 0.9552,
+        "recall_at_10": 0.9964,
+        "mrr_at_10": 0.7843,
+        "ndcg_at_10": 0.8366,
+        "recall_at_budget": 0.9946
+      },
+      "by_variant": {
+        "canonical": {
+          "recall_at_1": 0.8763,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.9364,
+          "ndcg_at_10": 0.953,
+          "recall_at_budget": 1.0
+        },
+        "paraphrase": {
+          "recall_at_1": 0.3763,
+          "recall_at_5": 0.8978,
+          "recall_at_10": 0.9892,
+          "mrr_at_10": 0.5722,
+          "ndcg_at_10": 0.6733,
+          "recall_at_budget": 0.9839
+        },
+        "ascii": {
+          "recall_at_1": 0.7366,
+          "recall_at_5": 0.9677,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.8443,
+          "ndcg_at_10": 0.8834,
+          "recall_at_budget": 1.0
+        }
+      },
+      "answers": null,
+      "seconds": 14.35
+    },
+    {
+      "name": "hybrid, Turkish analyser",
+      "mode": "hybrid",
+      "chunking": "structure+context",
+      "analyzer": "trcase+apos+stop+prefix5+fold",
+      "embedder": "e5-small",
+      "rerank": false,
+      "questions": 558,
+      "chunks": 191,
+      "chunk_words": 34.7,
+      "overall": {
+        "recall_at_1": 0.776,
+        "recall_at_5": 0.9982,
+        "recall_at_10": 1.0,
+        "mrr_at_10": 0.87,
+        "ndcg_at_10": 0.903,
+        "recall_at_budget": 1.0
+      },
+      "by_variant": {
+        "canonical": {
+          "recall_at_1": 0.8978,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.9489,
+          "ndcg_at_10": 0.9623,
+          "recall_at_budget": 1.0
+        },
+        "paraphrase": {
+          "recall_at_1": 0.5323,
+          "recall_at_5": 0.9946,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.7122,
+          "ndcg_at_10": 0.7845,
+          "recall_at_budget": 1.0
+        },
+        "ascii": {
+          "recall_at_1": 0.8978,
+          "recall_at_5": 1.0,
+          "recall_at_10": 1.0,
+          "mrr_at_10": 0.9489,
+          "ndcg_at_10": 0.9623,
+          "recall_at_budget": 1.0
+        }
+      },
+      "answers": null,
+      "seconds": 0.2
+    }
+  ]
+}
