@@ -139,6 +139,11 @@ class ExtractiveGenerator:
         q = set(self._analyzer.terms(question))
         best: tuple[float, int, str] | None = None
         for i, sc in enumerate(contexts, 1):
+            # The title and section path describe every sentence of the chunk: "Akçaburç Belediyesi" is in
+            # the title, not in the sentence that states the fee. The header settles entity and topic; the
+            # sentence must cover the rest of the question, so a matching title alone never yields an answer.
+            header = set(self._analyzer.terms(f"{sc.chunk.title} {sc.chunk.section}"))
+            rest = (q - header) or q
             for span in split_sentences(sc.chunk.body):
                 if span.text.lstrip().startswith("#"):
                     continue
@@ -146,7 +151,7 @@ class ExtractiveGenerator:
                 if not q or not terms:
                     continue
                 # Coverage of the question, with a small preference for higher-ranked contexts.
-                score = len(q & terms) / len(q) - 0.01 * (i - 1)
+                score = len(rest & terms) / len(rest) - 0.01 * (i - 1)
                 if best is None or score > best[0]:
                     best = (score, i, span.text.strip())
         if best is None or best[0] < self._min_coverage:

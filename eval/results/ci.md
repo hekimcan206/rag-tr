@@ -14,6 +14,6 @@ Download-free regression suite (hashing embedder, extractive generator).
 
 | contexts from | generator | n | accuracy | citation precision | supported | groundedness | false abstention | abstention (unanswerable) | median s |
 |---|---|---|---|---|---|---|---|---|---|
-| hybrid | extractive | 602 | 0.403 | 0.824 | 0.824 | 1.000 | 0.521 | 0.727 | 0.001 |
+| hybrid | extractive | 602 | 0.446 | 0.996 | 0.996 | 1.000 | 0.550 | 1.000 | 0.001 |
 
-Run 2026-11-09T23:10:35+00:00 · Python 3.13.9 · 16 CPUs visible · load avg start [2.79, 1.61, 1.19] end [2.72, 1.62, 1.19] · wall 2.8 s · embedder `hashing-384` · reranker `None` · generator `extractive`
+Run 2026-11-11T09:20:59+00:00 · Python 3.13.9 · 16 CPUs visible · load avg start [2.07, 1.3, 1.24] end [2.07, 1.31, 1.25] · wall 2.2 s · embedder `hashing-384` · reranker `None` · generator `extractive`
